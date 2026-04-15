@@ -1,0 +1,18 @@
+# Raw datasets (large, downloaded separately)
+GRAPE/
+VinBigData/
+grape/
+vinbigdata/
+
+# Environment
+.env
+.DS_Store
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code internals
+.claude/
