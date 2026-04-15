@@ -229,6 +229,21 @@ with st.sidebar:
     api_status = "🟢 Connected" if ai.is_available else "🟡 Demo Mode"
     st.caption(f"AI Engine: {api_status}")
 
+    with st.expander("🔍 AI Diagnostics", expanded=not ai.is_available or bool(ai.last_error)):
+        import os
+        key_present = bool(os.getenv("CEREBRAS_API_KEY"))
+        key_len = len(os.getenv("CEREBRAS_API_KEY", ""))
+        st.write(f"**Env var set:** {key_present}")
+        st.write(f"**Key length:** {key_len}")
+        st.write(f"**Model:** `{ai.model}`")
+        st.write(f"**Client initialized:** {ai.client is not None}")
+        if ai.init_error:
+            st.error(f"Init error: {ai.init_error}")
+        if ai.last_error:
+            st.error(f"Last API error: {ai.last_error}")
+        if ai.is_available and not ai.last_error:
+            st.success("No errors recorded yet.")
+
     st.divider()
 
     # Reset

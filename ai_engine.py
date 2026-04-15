@@ -53,18 +53,32 @@ class AIEngine:
     """Handles all AI interactions for the teaching system."""
 
     def __init__(self, api_key: str = CEREBRAS_API_KEY):
-        if OpenAI is not None and api_key:
-            self.client = OpenAI(
-                api_key=api_key,
-                base_url=CEREBRAS_BASE_URL,
-            )
-        else:
+        self.last_error: str | None = None
+        self.init_error: str | None = None
+        if OpenAI is None:
             self.client = None
+            self.init_error = "openai package not installed"
+        elif not api_key:
+            self.client = None
+            self.init_error = "CEREBRAS_API_KEY is empty — secret not loaded"
+        else:
+            try:
+                self.client = OpenAI(
+                    api_key=api_key,
+                    base_url=CEREBRAS_BASE_URL,
+                )
+            except Exception as e:
+                self.client = None
+                self.init_error = f"OpenAI client init failed: {type(e).__name__}: {e}"
         self.model = CEREBRAS_MODEL
 
     @property
     def is_available(self) -> bool:
         return self.client is not None and CEREBRAS_API_KEY != ""
+
+    def _record_error(self, where: str, exc: Exception) -> None:
+        self.last_error = f"{where}: {type(exc).__name__}: {exc}"
+        print(f"AI {where} error: {exc}")
 
     def evaluate_answer(
         self,
@@ -111,9 +125,10 @@ class AIEngine:
                 else:
                     result["verdict"] = "INCORRECT"
 
+            self.last_error = None
             return result
         except Exception as e:
-            print(f"AI evaluation error: {e}")
+            self._record_error("evaluation", e)
             return self._mock_evaluation(ground_truth, student_answer)
 
     def generate_question(
@@ -156,9 +171,10 @@ class AIEngine:
                 max_tokens=800,
             )
 
+            self.last_error = None
             return _parse_json_response(response.choices[0].message.content)
         except Exception as e:
-            print(f"AI question generation error: {e}")
+            self._record_error("question_generation", e)
             return self._mock_question(category, ground_truth, question_type)
 
     def generate_socratic_hint(
@@ -215,9 +231,10 @@ class AIEngine:
                 temperature=0.5,
                 max_tokens=500,
             )
+            self.last_error = None
             return _parse_json_response(response.choices[0].message.content)
         except Exception as e:
-            print(f"Socratic hint error: {e}")
+            self._record_error("socratic_hint", e)
             return self._mock_socratic_hint(ground_truth, student_response, turn_number, max_turns)
 
     def _mock_socratic_hint(
