@@ -11,6 +11,10 @@ CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", "")
 CEREBRAS_MODEL = "qwen-3-235b-a22b-instruct-2507"
 CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1"
 
+# Gemini (Google AI Studio) — used for Socratic hints because Cerebras was timing out
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = "gemini-2.5-flash"
+
 # Paths
 BASE_DIR = Path(__file__).parent
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))

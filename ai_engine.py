@@ -15,10 +15,19 @@ try:
 except ImportError:
     OpenAI = None
 
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except ImportError:
+    genai = None
+    genai_types = None
+
 from config import (
     CEREBRAS_API_KEY,
     CEREBRAS_MODEL,
     CEREBRAS_BASE_URL,
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
     SYSTEM_PROMPT,
     EVALUATION_PROMPT,
     QUESTION_GEN_PROMPT,
@@ -71,6 +80,20 @@ class AIEngine:
                 self.client = None
                 self.init_error = f"OpenAI client init failed: {type(e).__name__}: {e}"
         self.model = CEREBRAS_MODEL
+
+        # Gemini client (used for Socratic hints to avoid Cerebras timeouts)
+        self.gemini_client = None
+        self.gemini_init_error: str | None = None
+        if genai is None:
+            self.gemini_init_error = "google-genai package not installed"
+        elif not GEMINI_API_KEY:
+            self.gemini_init_error = "GEMINI_API_KEY is empty — secret not loaded"
+        else:
+            try:
+                self.gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+            except Exception as e:
+                self.gemini_init_error = f"Gemini client init failed: {type(e).__name__}: {e}"
+        self.gemini_model = GEMINI_MODEL
 
     @property
     def is_available(self) -> bool:
@@ -208,7 +231,8 @@ class AIEngine:
                 "it as a question. After this, the full answer will be revealed."
             )
 
-        if not self.is_available:
+        if self.gemini_client is None:
+            self.last_error = self.gemini_init_error or "Gemini client unavailable"
             return self._mock_socratic_hint(ground_truth, student_response, turn_number, max_turns)
 
         prompt = SOCRATIC_HINT_PROMPT.format(
@@ -222,17 +246,19 @@ class AIEngine:
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.5,
-                max_tokens=500,
+            response = self.gemini_client.models.generate_content(
+                model=self.gemini_model,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.5,
+                    max_output_tokens=800,
+                    response_mime_type="application/json",
+                    thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+                ),
             )
             self.last_error = None
-            return _parse_json_response(response.choices[0].message.content)
+            return _parse_json_response(response.text or "")
         except Exception as e:
             self._record_error("socratic_hint", e)
             return self._mock_socratic_hint(ground_truth, student_response, turn_number, max_turns)

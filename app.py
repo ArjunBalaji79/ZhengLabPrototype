@@ -231,17 +231,27 @@ with st.sidebar:
 
     with st.expander("🔍 AI Diagnostics", expanded=not ai.is_available or bool(ai.last_error)):
         import os
-        key_present = bool(os.getenv("CEREBRAS_API_KEY"))
-        key_len = len(os.getenv("CEREBRAS_API_KEY", ""))
-        st.write(f"**Env var set:** {key_present}")
-        st.write(f"**Key length:** {key_len}")
-        st.write(f"**Model:** `{ai.model}`")
-        st.write(f"**Client initialized:** {ai.client is not None}")
+        st.markdown("**Cerebras (eval + question gen)**")
+        cerebras_key_present = bool(os.getenv("CEREBRAS_API_KEY"))
+        cerebras_key_len = len(os.getenv("CEREBRAS_API_KEY", ""))
+        st.write(f"- Env var set: {cerebras_key_present} (length {cerebras_key_len})")
+        st.write(f"- Model: `{ai.model}`")
+        st.write(f"- Client initialized: {ai.client is not None}")
         if ai.init_error:
             st.error(f"Init error: {ai.init_error}")
+
+        st.markdown("**Gemini (Socratic hints)**")
+        gemini_key_present = bool(os.getenv("GEMINI_API_KEY"))
+        gemini_key_len = len(os.getenv("GEMINI_API_KEY", ""))
+        st.write(f"- Env var set: {gemini_key_present} (length {gemini_key_len})")
+        st.write(f"- Model: `{ai.gemini_model}`")
+        st.write(f"- Client initialized: {ai.gemini_client is not None}")
+        if ai.gemini_init_error:
+            st.error(f"Init error: {ai.gemini_init_error}")
+
         if ai.last_error:
             st.error(f"Last API error: {ai.last_error}")
-        if ai.is_available and not ai.last_error:
+        if ai.is_available and ai.gemini_client is not None and not ai.last_error:
             st.success("No errors recorded yet.")
 
     st.divider()
